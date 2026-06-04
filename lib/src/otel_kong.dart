@@ -2,7 +2,6 @@
 // Copyright 2025-2026 Mindful Software LLC d/b/a Dartastic.io, All rights reserved.
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
-import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 
 import 'otel_kong_suppression.dart';
 
@@ -52,45 +51,58 @@ Future<T> tracedKong<T>({
   final t = tracer ?? OTel.tracerProvider().getTracer('otel_kong');
   final span = t.startSpan('kong $operation', kind: SpanKind.server);
   try {
-    span.setStringAttribute('http.route', '$operation');
+    span.addAttributes(
+        OTel.attributes([OTel.attributeString('http.route', operation)]));
     final r = await invoke();
     final res = r.result;
     if (res != null) {
       if (res.route != null) {
-        span.setStringAttribute('http.route', res.route!);
+        span.addAttributes(
+            OTel.attributes([OTel.attributeString('http.route', res.route!)]));
       }
       if (res.service != null) {
-        span.setStringAttribute('service.name', res.service!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('service.name', res.service!)]));
       }
       if (res.consumer != null) {
-        span.setStringAttribute('kong.consumer', res.consumer!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('kong.consumer', res.consumer!)]));
       }
       if (res.upstreamHost != null) {
-        span.setStringAttribute('server.address', res.upstreamHost!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('server.address', res.upstreamHost!)]));
       }
       if (res.upstreamUri != null) {
-        span.setStringAttribute('url.full', res.upstreamUri!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('url.full', res.upstreamUri!)]));
       }
       if (res.plugin != null) {
-        span.setStringAttribute('kong.plugin', res.plugin!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('kong.plugin', res.plugin!)]));
       }
       if (res.latencyKongMs != null) {
-        span.setIntAttribute('kong.latency.kong', res.latencyKongMs!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeInt('kong.latency.kong', res.latencyKongMs!)]));
       }
       if (res.latencyProxyMs != null) {
-        span.setIntAttribute('kong.latency.proxy', res.latencyProxyMs!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeInt('kong.latency.proxy', res.latencyProxyMs!)]));
       }
       if (res.statusCode != null) {
-        span.setIntAttribute('http.response.status_code', res.statusCode!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeInt('http.response.status_code', res.statusCode!)]));
       }
       if (res.errorCode != null) {
-        span.setStringAttribute('kong.error.code', res.errorCode!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('kong.error.code', res.errorCode!)]));
       }
       final fail = res.errorCode != null ||
           (res.statusCode != null && res.statusCode! >= 400);
       if (fail) {
-        span.setStringAttribute(
-            ErrorResource.errorType.key, res.errorCode ?? 'kong.error');
+        span.addAttributes(OTel.attributes([
+          OTel.attributeString(
+              ErrorResource.errorType.key, res.errorCode ?? 'kong.error')
+        ]));
         span.setStatus(SpanStatusCode.Error, res.errorMessage);
       }
     }
