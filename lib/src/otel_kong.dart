@@ -1,11 +1,12 @@
-// Licensed under the Dartastic Pro Software License Agreement.
+// Licensed under the Apache License, Version 2.0
 // Copyright 2025-2026 Mindful Software LLC d/b/a Dartastic.io, All rights reserved.
 
-import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 
 import 'otel_kong_suppression.dart';
 
 class KongResult {
+  /// Creates a result.
   const KongResult({
     this.route,
     this.service,
@@ -33,8 +34,13 @@ class KongResult {
   final String? errorMessage;
 }
 
+/// What a traced call returned: the value for the caller plus fields
+/// recorded on the span.
 class KongCallResult<T> {
+  /// Creates a call result.
   const KongCallResult({required this.value, this.result});
+
+  /// The value returned to the caller.
   final T value;
   final KongResult? result;
 }
@@ -42,66 +48,67 @@ class KongCallResult<T> {
 Future<T> tracedKong<T>({
   required String operation,
   required Future<KongCallResult<T>> Function() invoke,
-  Tracer? tracer,
+  APITracer? tracer,
 }) async {
   if (kongInstrumentationSuppressed()) {
     final r = await invoke();
     return r.value;
   }
-  final t = tracer ?? OTel.tracerProvider().getTracer('otel_kong');
+  final t = tracer ?? OTelAPI.tracerProvider().getTracer('otel_kong');
   final span = t.startSpan('kong $operation', kind: SpanKind.server);
   try {
     span.addAttributes(
-        OTel.attributes([OTel.attributeString('http.route', operation)]));
+        OTelAPI.attributes([OTelAPI.attributeString('http.route', operation)]));
     final r = await invoke();
     final res = r.result;
     if (res != null) {
       if (res.route != null) {
-        span.addAttributes(
-            OTel.attributes([OTel.attributeString('http.route', res.route!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('http.route', res.route!)]));
       }
       if (res.service != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('service.name', res.service!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('service.name', res.service!)]));
       }
       if (res.consumer != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('kong.consumer', res.consumer!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('kong.consumer', res.consumer!)]));
       }
       if (res.upstreamHost != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('server.address', res.upstreamHost!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('server.address', res.upstreamHost!)]));
       }
       if (res.upstreamUri != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('url.full', res.upstreamUri!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('url.full', res.upstreamUri!)]));
       }
       if (res.plugin != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('kong.plugin', res.plugin!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('kong.plugin', res.plugin!)]));
       }
       if (res.latencyKongMs != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('kong.latency.kong', res.latencyKongMs!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeInt('kong.latency.kong', res.latencyKongMs!)]));
       }
       if (res.latencyProxyMs != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('kong.latency.proxy', res.latencyProxyMs!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeInt('kong.latency.proxy', res.latencyProxyMs!)]));
       }
       if (res.statusCode != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('http.response.status_code', res.statusCode!)]));
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeInt('http.response.status_code', res.statusCode!)
+        ]));
       }
       if (res.errorCode != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('kong.error.code', res.errorCode!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('kong.error.code', res.errorCode!)]));
       }
       final fail = res.errorCode != null ||
           (res.statusCode != null && res.statusCode! >= 400);
       if (fail) {
-        span.addAttributes(OTel.attributes([
-          OTel.attributeString(
-              ErrorResource.errorType.key, res.errorCode ?? 'kong.error')
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeString(
+              ErrorAttributes.errorType.key, res.errorCode ?? 'kong.error')
         ]));
         span.setStatus(SpanStatusCode.Error, res.errorMessage);
       }
